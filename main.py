@@ -26,11 +26,11 @@ COLUMN_NAME_MAPPING = {
     "co_applicant_credit_score": "Minimum Co-Applicant Credit Score",  # Capitalize "Co-Applicant"
     "applicant_income": "Minimum Applicant Income",  # Good
     "total_income_co_applicant": "Minimum Total Income with Co-Applicant",  # Capitalize "Total" and "Co-Applicant"
-    "banks" : "Banks",
-    "car" : "Car Details",
-    "min_age" : "Minimum Age",
-    "min_credit_score" : "Minimum Credit Score",
-    "min_income" : "Minimum Income"
+    "b_banks" : "Banks",
+    "b_car" : "Car Details",
+    "b_min_age" : "Minimum Age",
+    "b_min_credit_score" : "Minimum Credit Score",
+    "b_min_income" : "Minimum Income"
 }
 
 
@@ -96,8 +96,8 @@ elif st.session_state["current_view"] == "add":
     # Add Data Section
     st.header(f"Add Data to {st.session_state['current_table']}")
     table_name = st.session_state["current_table"]
-    if table_name != "banks":
-        banks = fetch_data("banks")
+    if table_name != "b_banks":
+        banks = fetch_data("b_banks")
         bank_names = banks["BANK_NAME"].tolist()
         bank_name_to_id = dict(zip(banks["BANK_NAME"], banks["bank_id"]))
 
@@ -108,17 +108,26 @@ elif st.session_state["current_view"] == "add":
     else:
         with st.form("add_form"):
             form_data = {}
-            if table_name == "banks":
+            if table_name == "b_banks":
                 # Special case: Adding data to the banks table
                 for column in data.columns:
                     column_display = COLUMN_NAME_MAPPING.get(column, column)
                     if column not in ["id", "bank_id"]:
-                        if data[column].dtype == "int64":
+                        if column == "status":
+                            # Special handling for 'status' column
+                            status_display = st.radio(
+                                f"Select {column_display}",
+                                options=["Active", "Inactive"],  # User-friendly options
+                                index=0  # Default to "Active"
+                            )
+                            # Map the selected value to 1 for Active and 0 for Inactive
+                            form_data[column] = 1 if status_display == "Active" else 0
+                        elif data[column].dtype == "int64":
                             form_data[column] = st.number_input(f"Enter {column_display}", value=0)
                         elif data[column].dtype == "float64":
                             form_data[column] = st.number_input(f"Enter {column_display}", value=0.0)
                         else:
-                            form_data[column] = st.text_input(f"Enter {column_display}")
+                            form_data[column] = st.text_input(f"Enter {column_display}").lower()
             else:
                 # Generic case: Adding data to other tables
                 if "bank_id" in data.columns:  # If the table has a `bank_id` foreign key
@@ -135,7 +144,7 @@ elif st.session_state["current_view"] == "add":
                         elif data[column].dtype == "float64":
                             form_data[column] = st.number_input(f"Enter {column_display}", value=0.0)
                         else:
-                            form_data[column] = st.text_input(f"Enter {column_display}")
+                            form_data[column] = st.text_input(f"Enter {column_display}").lower()
                     # form_data[column] = st.text_input(f"Enter {column}")
             submitted = st.form_submit_button("Add Record")
             if submitted:
@@ -172,12 +181,22 @@ elif st.session_state["current_view"] == "action":
                 if ("id" in selected_row and "bank_id" in selected_row and column in ["id", "bank_id", "BANK_NAME"]) or \
                 (column in ["id", "bank_id"]):
                     continue
-                if isinstance(value, int):
+                if column == "status":
+                    status_display = st.radio(
+                        f"Update {column_display}",
+                        options=["Active", "Inactive"],
+                        index=0 if value == 1 else 1  # Set default based on current value
+                    )
+                    # Map the selected value to 1 for Active and 0 for Inactive
+                    updated_data[column] = 1 if status_display == "Active" else 0
+
+                # Handle other columns based on data type
+                elif isinstance(value, int):
                     updated_data[column] = st.number_input(f"Update {column_display}", value=value)
                 elif isinstance(value, float):
                     updated_data[column] = st.number_input(f"Update {column_display}", value=value)
                 else:
-                    updated_data[column] = st.text_input(f"Update {column_display}", value=value)
+                    updated_data[column] = st.text_input(f"Update {column_display}", value=value).lower()
             submitted = st.form_submit_button("Update Row")
             if submitted:
                 primary_key = "id" if "id" in selected_row else "bank_id"

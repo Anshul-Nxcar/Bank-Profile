@@ -4,13 +4,26 @@ import numpy as np
 
 
 def get_connection():
+    # return mysql.connector.connect(
+    #     host="localhost",
+    #     user="root",
+    #     password="",
+    #     database="loan_decision",
+    #     port=3308  # Update this if your MySQL runs on a different port
+    # )
+    # return mysql.connector.connect(
+    #         host='crm-dev.nxcar.in',
+    #         user='crm-nxcar',
+    #         password='P@55w0rd',
+    #         database='loan_decision'
+    #     )
     return mysql.connector.connect(
-        host="localhost",
-        user="root",
-        password="",
-        database="bank_data",
-        port=3308  # Update this if your MySQL runs on a different port
-    )
+            host='localhost',
+            user='crm-nxcar',
+            password='P@55w0rd',
+            database='loan_decision'
+        )
+
 
 
 def fetch_table_names():
@@ -27,8 +40,12 @@ def fetch_table_names():
         if not tables_result:  # Check if the result is empty
             return []
 
-        # Extract table names from the result
-        tables = [table['Tables_in_bank_data'] for table in tables_result]
+        # Extract table names that start with 'b_' and remove the prefix
+        tables = [
+            table['Tables_in_loan_decision']  # Remove 'b_' prefix
+            for table in tables_result
+            if table['Tables_in_loan_decision'].startswith('b_')
+        ]
 
     except mysql.connector.Error as e:
         print(f"Database error: {e}")
@@ -43,6 +60,7 @@ def fetch_table_names():
     return tables
 
 
+
 # Fetch all records from a table
 def fetch_data(table_name):
     conn = get_connection()
@@ -51,12 +69,12 @@ def fetch_data(table_name):
     # Handle tables with `bank_id` by joining with the `banks` table
     if table_name in ["car", "min_age", "min_credit_score", "min_income"]:
         query = f"""
-            SELECT banks.bank_name AS BANK_NAME, {table_name}.*
+            SELECT b_banks.bank_name AS BANK_NAME, {table_name}.*
             FROM {table_name}
-            JOIN banks ON {table_name}.bank_id = banks.bank_id
+            JOIN b_banks ON {table_name}.bank_id = b_banks.bank_id
         """
-    elif table_name == "banks":
-        query = "SELECT bank_id, bank_name AS BANK_NAME, type, status FROM banks"
+    elif table_name == "b_banks":
+        query = "SELECT bank_id, bank_name AS BANK_NAME, type, status FROM b_banks"
     else:
         query = f"SELECT * FROM {table_name}"
     
@@ -86,7 +104,7 @@ def fetch_data(table_name):
 def fetch_record_by_id(table_name, record_id):
     conn = get_connection()
     cursor = conn.cursor(dictionary=True)
-    if table_name != "banks":
+    if table_name != "b_banks":
         cursor.execute(f"SELECT * FROM {table_name} WHERE id = %s", (record_id,))
     else:
         cursor.execute(f"SELECT * FROM {table_name} WHERE bank_id = %s", (record_id,))
@@ -130,7 +148,7 @@ def update_data(table_name, data, id_value):
     # Build the SQL update query
     set_clause = ", ".join([f"{key} = %s" for key in data.keys()])
 
-    if table_name != "banks":
+    if table_name != "b_banks":
         query = f"UPDATE {table_name} SET {set_clause} WHERE id = %s"
     else:
         query = f"UPDATE {table_name} SET {set_clause} WHERE bank_id = %s"
@@ -154,8 +172,8 @@ def delete_data(table_name, bank_name):
     cursor = conn.cursor()
     
     # Map bank name to bank_id
-    if table_name != "banks":
-        cursor.execute("SELECT bank_id FROM banks WHERE bank_name = %s", (bank_name,))
+    if table_name != "b_banks":
+        cursor.execute("SELECT bank_id FROM b_banks WHERE bank_name = %s", (bank_name,))
         result = cursor.fetchone()
         if not result:
             st.error("Bank name not found!")
@@ -163,7 +181,7 @@ def delete_data(table_name, bank_name):
         bank_id = result[0]
         cursor.execute(f"DELETE FROM {table_name} WHERE bank_id = %s", (bank_id,))
     else:
-        cursor.execute("DELETE FROM banks WHERE bank_name = %s", (bank_name,))
+        cursor.execute("DELETE FROM b_banks WHERE bank_name = %s", (bank_name,))
     
     conn.commit()
     conn.close()
