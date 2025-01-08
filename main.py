@@ -86,7 +86,7 @@ if st.session_state["current_view"] == "view":
                 row_display = row_display.rename(COLUMN_NAME_MAPPING)
                 st.table(pd.DataFrame([row_display]))  # Display the modified row
             with col2:
-                if st.button(f"✏️ Row {index}", key=f"action_{index}"):
+                if st.button(f"✏️", key=f"action_{index}"):
                     st.session_state["selected_row"] = row.to_dict()
                     st.session_state["current_view"] = "action"  # Switch to action view
                     st.session_state["current_table"] = table_name
@@ -163,15 +163,15 @@ elif st.session_state["current_view"] == "action":
     selected_row = st.session_state["selected_row"]
 
     if selected_row:
-        st.header("Edit or Delete Row")
-        st.write("Selected Row Details:")
+        st.header("Edit or Delete")
+        st.write("Selected Details:")
         selected_row_display = selected_row.copy()  # Copy the row to avoid modifying the original
         selected_row_display = {k: v for k, v in selected_row_display.items() if k not in ['id', 'bank_id']}
         selected_row_display = {COLUMN_NAME_MAPPING.get(k, k): v for k, v in selected_row_display.items()}
         st.table(pd.DataFrame([selected_row_display]))
 
         # Update Section
-        st.subheader("Edit Row")
+        st.subheader("Edit")
         updated_data = {}
         with st.form("edit_form"):
             for column, value in selected_row.items():
@@ -197,7 +197,7 @@ elif st.session_state["current_view"] == "action":
                     updated_data[column] = st.number_input(f"Update {column_display}", value=value)
                 else:
                     updated_data[column] = st.text_input(f"Update {column_display}", value=value).lower()
-            submitted = st.form_submit_button("Update Row")
+            submitted = st.form_submit_button("Update")
             if submitted:
                 primary_key = "id" if "id" in selected_row else "bank_id"
                 update_data(st.session_state["current_table"], updated_data, selected_row[primary_key])
@@ -207,8 +207,8 @@ elif st.session_state["current_view"] == "action":
                 st.rerun()
 
         # Delete Section
-        st.subheader("Delete Row")
-        if st.button("Delete Row"):
+        st.subheader("Delete")
+        if st.button("Delete"):
             delete_data(st.session_state["current_table"], selected_row["BANK_NAME"])
             st.success("Row deleted successfully!")
             st.session_state["current_view"] = "view"  # Return to View Data

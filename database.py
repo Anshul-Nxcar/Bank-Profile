@@ -11,18 +11,18 @@ def get_connection():
     #     database="loan_decision",
     #     port=3308  # Update this if your MySQL runs on a different port
     # )
-    # return mysql.connector.connect(
-    #         host='crm-dev.nxcar.in',
-    #         user='crm-nxcar',
-    #         password='P@55w0rd',
-    #         database='loan_decision'
-    #     )
     return mysql.connector.connect(
-            host='localhost',
+            host='crm-dev.nxcar.in',
             user='crm-nxcar',
             password='P@55w0rd',
             database='loan_decision'
         )
+    # return mysql.connector.connect(
+    #         host='localhost',
+    #         user='crm-nxcar',
+    #         password='P@55w0rd',
+    #         database='loan_decision'
+    #     )
 
 
 
@@ -67,16 +67,14 @@ def fetch_data(table_name):
     cursor = conn.cursor(dictionary=True)
     
     # Handle tables with `bank_id` by joining with the `banks` table
-    if table_name in ["car", "min_age", "min_credit_score", "min_income"]:
+    if table_name != "b_banks":
         query = f"""
             SELECT b_banks.bank_name AS BANK_NAME, {table_name}.*
             FROM {table_name}
             JOIN b_banks ON {table_name}.bank_id = b_banks.bank_id
         """
-    elif table_name == "b_banks":
-        query = "SELECT bank_id, bank_name AS BANK_NAME, type, status FROM b_banks"
     else:
-        query = f"SELECT * FROM {table_name}"
+        query = "SELECT bank_id, bank_name AS BANK_NAME, type, status FROM b_banks"
     
     cursor.execute(query)
     records = cursor.fetchall()
