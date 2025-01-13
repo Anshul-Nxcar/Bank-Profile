@@ -4,19 +4,19 @@ import numpy as np
 
 
 def get_connection():
-    # return mysql.connector.connect(
-    #     host="localhost",
-    #     user="root",
-    #     password="",
-    #     database="loan_decision",
-    #     port=3308  # Update this if your MySQL runs on a different port
-    # )
     return mysql.connector.connect(
-            host='crm-dev.nxcar.in',
-            user='crm-nxcar',
-            password='P@55w0rd',
-            database='loan_decision'
-        )
+        host="localhost",
+        user="root",
+        password="",
+        database="loan_decision",
+        port=3308  # Update this if your MySQL runs on a different port
+    )
+    # return mysql.connector.connect(
+    #         host='crm-dev.nxcar.in',
+    #         user='crm-nxcar',
+    #         password='P@55w0rd',
+    #         database='loan_decision'
+    #     )
     # return mysql.connector.connect(
     #         host='localhost',
     #         user='crm-nxcar',
@@ -52,10 +52,8 @@ def fetch_table_names():
         return []
     finally:
         # Clean up the database connection
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
+        cursor.close()
+        conn.close()
 
     return tables
 
@@ -67,14 +65,68 @@ def fetch_data(table_name):
     cursor = conn.cursor(dictionary=True)
     
     # Handle tables with `bank_id` by joining with the `banks` table
-    if table_name != "b_banks":
+    if table_name in ["b_car", "b_min_age", "b_min_credit_score", "b_min_income",]:
         query = f"""
             SELECT b_banks.bank_name AS BANK_NAME, {table_name}.*
             FROM {table_name}
             JOIN b_banks ON {table_name}.bank_id = b_banks.bank_id
         """
-    else:
+
+    elif table_name == "b_negative_areas":
+        query = """
+        SELECT 
+            bb.bank_name AS BANK_NAME,
+            a.area,
+            a.pincode,
+            s.state_name,
+            bna.*
+        FROM 
+            b_negative_areas bna
+        JOIN 
+            b_banks bb ON bna.bank_id = bb.bank_id
+        JOIN 
+            area a ON bna.area_id = a.id
+        JOIN 
+            states s ON a.state_id = s.state_id;
+
+        """
+
+    elif table_name == "b_negative_models":
+        query = """
+        SELECT bb.bank_name as BANK_NAME, vm.make, vml.model, bnm.* 
+        FROM b_negative_models bnm 
+        JOIN vehiclemake vm ON bnm.make_id = vm.make_id 
+        JOIN vehiclemodellist vml ON bnm.model_id = vml.model_id 
+        JOIN b_banks bb on bnm.bank_id = bb.bank_id;
+        """
+    elif table_name == "b_negative_occupations":
+        query = """
+        SELECT bb.bank_name as BANK_NAME, o.occupation_name, bno.* 
+        from b_negative_occupations bno 
+        JOIN b_banks bb ON bno.bank_id = bb.bank_id 
+        JOIN occupations o ON bno.occupation_id = o.occupation_name;
+    """
+        
+    elif table_name == "b_nxcar_coverage":
+        query = """
+        SELECT bb.bank_name as BANK_NAME, s.state_name, c.city_name, bnc.* 
+        FROM b_nxcar_coverage bnc 
+        JOIN b_banks bb ON bnc.bank_id = bb.bank_id 
+        JOIN states s ON bnc.bank_id = s.state_id 
+        JOIN cities c ON bnc.city_id = c.city_id;
+        """
+    elif table_name == "b_banks":
         query = "SELECT bank_id, bank_name AS BANK_NAME, type, status FROM b_banks"
+    elif table_name == "vehiclemake":
+        query = '''SELECT make FROM vehiclemake WHERE is_active = 1 ORDER BY make_order'''
+    elif table_name == "occupations":
+        query = '''SELECT occupation_name, id FROM occupations WHERE status = 1'''
+    elif table_name == "states":
+        query = '''SELECT state_id, state_name FROM states WHERE is_active = 1'''
+    elif table_name == "cities":
+        query = '''SELECT city_id, city_name FROM cities WHERE is_active = 1'''
+
+    
     
     cursor.execute(query)
     records = cursor.fetchall()
@@ -112,16 +164,23 @@ def fetch_record_by_id(table_name, record_id):
 
 # Insert a new record into a table
 def insert_data(table_name, data):
-    conn = get_connection()
+    conn = get_connection()  # Ensure get_connection() is implemented and returns a valid connection
     cursor = conn.cursor()
     
+    # Prepare the SQL query for insertion
     placeholders = ", ".join(["%s"] * len(data))
     columns = ", ".join(data.keys())
     query = f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders})"
     
-    cursor.execute(query, tuple(data.values()))
-    conn.commit()
-    conn.close()
+    try:
+        cursor.execute(query, tuple(data.values()))
+        conn.commit()
+    except Exception as e:
+        conn.rollback()  # Rollback the transaction in case of error
+        raise e  # Re-raise the exception for the caller to handle
+    finally:
+        cursor.close()
+        conn.close()
 
 # Update a record in a table
 def update_data(table_name, data, id_value):
