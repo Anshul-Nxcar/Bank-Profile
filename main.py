@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from database import fetch_data, insert_data, update_data, delete_data, fetch_table_names
-from helper import get_make_id, get_model_id, get_model_name, get_cities_by_state
+from helper import get_make_id, get_model_id, get_model_name, get_cities_by_state, get_area_id
 
 
 
@@ -123,22 +123,59 @@ elif st.session_state["current_view"] == "add":
                         else:
                             form_data[column] = st.text_input(f"Enter {column_display}").lower()
             
-            # elif table_name == "b_negative_areas":
-            #     if "bank_id" in data.columns:
-            #         selected_bank = st.selectbox("Select Bank Name", bank_names)
-            #         form_data["bank_id"] = bank_name_to_id[selected_bank]
+            elif table_name == "b_negative_areas":
+                if "bank_id" in data.columns:
+                    selected_bank = st.selectbox("Select Bank Name", bank_names)
+                    form_data["bank_id"] = bank_name_to_id[selected_bank]
                 
-            #     for column in data.columns:
-            #         if column not in ["id", "bank_id"]:
-            #             if column == "BANK_NAME":
-            #                 continue
-            #             column_display = COLUMN_NAME_MAPPING.get(column, column)
-            #             if data[column].dtype == "int64":
-            #                 form_data[column] = st.number_input(f"Enter {column_display}", value=0)
-            #             elif data[column].dtype == "float64":
-            #                 form_data[column] = st.number_input(f"Enter {column_display}", value=0.0)
-            #             else:
-            #                 form_data[column] = st.text_input(f"Enter {column_display}").lower()
+                for column in data.columns:
+                    if column not in ["id", "bank_id"]:
+                        if column == "BANK_NAME":
+                            continue
+                        column_display = COLUMN_NAME_MAPPING.get(column, column)
+                        if column == "status":
+                            status_display = st.radio(
+                                f"Select {column_display}",
+                                options=["Active", "Inactive"],
+                                index=0
+                            )
+                            form_data[column] = 1 if status_display == "Active" else 0
+                        elif column == "area_id":
+                            selected_area = st.selectbox("Select Negative Area", fetch_data("area_name"))
+                if st.button("Add New Area"):
+                    data = {}
+                    for column in ["state_id", "city_id", "pincode", "area"]:
+                        if column not in ["id", "bank_id"]:
+                            if column == "state_id":
+                                state = fetch_data("states")
+                                state_names = state["state_name"].tolist()
+                                state_name_to_id = dict(zip(state["state_name"], state["state_id"]))
+                                selected_state = st.selectbox("Select State Name", state_names)
+                                data[column] = state_name_to_id[selected_state]
+
+                            elif column == "city_id":
+                                city = get_cities_by_state(form_data["state_id"])
+                                city_names = city["city_name"].tolist()
+                                city_name_to_id = dict(zip(city["city_name"], city["city_id"]))
+                                selected_city = st.selectbox("Select City Name", city_names)
+                                data[column] = city_name_to_id[selected_city]
+                            elif column == "pincode":
+                                data[column] = st.number_input(f"Enter Pin Code", value=0)
+                            elif column == "area":
+                                data[column] = st.text_input(f"Enter area").lower()
+                    try:
+                            insert_data("area", data)
+                            st.success("New area added successfully!")
+                    except Exception as e:
+                        st.error(f"Failed to add occupation: {e}")
+
+                form_data["area_id"] = get_area_id(data["area"])
+
+                    
+
+
+
+                        
 
             elif table_name == "b_negative_models":
                 if "bank_id" in data.columns:
@@ -156,6 +193,7 @@ elif st.session_state["current_view"] == "add":
                                 options=["Active", "Inactive"],
                                 index=0
                             )
+                            form_data[column] = 1 if status_display == "Active" else 0
                         elif column == "make_id":
                             selected_make = st.selectbox("Select Make Name", fetch_data("vehiclemake"))
                             form_data[column] = get_make_id(selected_make)
@@ -182,6 +220,7 @@ elif st.session_state["current_view"] == "add":
                                 options=["Active", "Inactive"],
                                 index=0
                             )
+                            form_data[column] = 1 if status_display == "Active" else 0
                         elif column == "occupation_id":
                             occupation = fetch_data("occupations")
                             occupation_names = occupation["occupation_name"].tolist()
@@ -221,6 +260,7 @@ elif st.session_state["current_view"] == "add":
                                 options=["Active", "Inactive"],
                                 index=0
                             )
+                            form_data[column] = 1 if status_display == "Active" else 0
                         elif column == "state_id":
                             state = fetch_data("states")
                             state_names = state["state_name"].tolist()
@@ -365,6 +405,53 @@ elif st.session_state["current_view"] == "action":
                         index=city_names.index(city_id_to_name[value]) if value in city_name_to_id.values() else 0
                     )
                     updated_data[column] = city_name_to_id[selected_city]
+
+                elif column == "area_id":
+                    area_data = fetch_data("area")
+                    area_names = area_data["area"].tolist()
+                    area_name_to_id = dict(zip(area_data["area"], area_data["id"]))
+
+                    selected_area = st.selectbox(
+                        f"Update {column_display}",
+                        area_names,
+                        index=area_names.index(area_name_to_id[value]) if value in area_name_to_id.values() else len(area_names) - 1
+                    )
+
+                    if st.button("Add New Area"):
+                        st.text("Add a new area below:")
+                        new_area_data = {}
+                        for sub_column in ["state_id", "city_id", "pincode", "area"]:
+                            if sub_column == "state_id":
+                                states = fetch_data("states")
+                                state_names = states["state_name"].tolist()
+                                state_name_to_id = dict(zip(states["state_name"], states["state_id"]))
+                                selected_state = st.selectbox("Select State Name", state_names)
+                                new_area_data[sub_column] = state_name_to_id[selected_state]
+
+                            elif sub_column == "city_id":
+                                cities = get_cities_by_state(new_area_data["state_id"])
+                                city_names = cities["city_name"].tolist()
+                                city_name_to_id = dict(zip(cities["city_name"], cities["city_id"]))
+                                selected_city = st.selectbox("Select City Name", city_names)
+                                new_area_data[sub_column] = city_name_to_id[selected_city]
+
+                            elif sub_column == "pincode":
+                                new_area_data[sub_column] = st.number_input(f"Enter Pin Code", value=0)
+
+                            elif sub_column == "area":
+                                new_area_data[sub_column] = st.text_input(f"Enter Area Name").lower()
+
+                        try:
+                            insert_data("area", new_area_data)
+                            area_data = fetch_data("area")  # Refresh area data
+                            area_name_to_id = dict(zip(area_data["area"], area_data["id"]))
+                            updated_data[column] = area_name_to_id[new_area_data["area"]]
+                            st.success("New area added successfully!")
+                        except Exception as e:
+                            st.error(f"Failed to add area: {e}")
+                    else:
+                        updated_data[column] = area_name_to_id[selected_area]
+
 
                 elif isinstance(value, int):
                     updated_data[column] = st.number_input(f"Update {column_display}", value=value)

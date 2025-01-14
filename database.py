@@ -125,6 +125,11 @@ def fetch_data(table_name):
         query = '''SELECT state_id, state_name FROM states WHERE is_active = 1'''
     elif table_name == "cities":
         query = '''SELECT city_id, city_name FROM cities WHERE is_active = 1'''
+    elif table_name =="area_name":
+        query = '''SELECT area FROM area'''
+
+    elif table_name == "area":
+        query = '''SELECT id, area FROM area'''
 
     
     

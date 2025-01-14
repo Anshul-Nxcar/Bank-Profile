@@ -35,3 +35,12 @@ def get_cities_by_state(state_id):
     city = cursor.fetchone()
     conn.close()
     return city
+
+
+def get_area_id(area_name):
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute(f"SELECT id FROM area WHERE area = %s", (area_name,))
+    area_id = cursor.fetchone()
+    conn.close()
+    return area_id
